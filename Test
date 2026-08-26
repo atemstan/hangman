@@ -1,0 +1,143 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <assert.h>
+
+#define MAX_WORDS 100
+#define MAX_WORD_LEN 50
+#define MAX_LIVES 6
+
+typedef enum {
+    PLAYING,
+    WON,
+    LOST
+} GameStatus;
+
+typedef struct {
+    char words[MAX_WORDS][MAX_WORD_LEN];
+    int word_count;
+    char secret_word[MAX_WORD_LEN];
+    char guessed_letters[26];
+    int guessed_count;
+    char wrong_guesses[26];
+    int wrong_count;
+    int lives;
+    GameStatus status;
+} HangmanGame;
+
+int kiem_tra_thang(const HangmanGame *game) {
+    int len = strlen((*game).secret_word);
+    for (int i = 0; i < len; i++) {
+        char c = (*game).secret_word[i];
+        if (c != ' ') {
+            int tim_thay = 0;
+            for (int j = 0; j < (*game).guessed_count; j++) {
+                if ((*game).guessed_letters[j] == c) {
+                    tim_thay = 1;
+                    break;
+                }
+            }
+            if (!tim_thay) return 0;
+        }
+    }
+    return 1;
+}
+
+int xu_ly_doan_chu(HangmanGame *game, char letter) {
+    if ((*game).status != PLAYING) return 0;
+
+    letter = tolower(letter);
+    if (!isalpha(letter)) return 0;
+
+    for (int i = 0; i < (*game).guessed_count; i++) {
+        if ((*game).guessed_letters[i] == letter) return 0;
+    }
+    for (int i = 0; i < (*game).wrong_count; i++) {
+        if ((*game).wrong_guesses[i] == letter) return 0;
+    }
+
+    int co_trong_tu = 0;
+    int len = strlen((*game).secret_word);
+    for (int i = 0; i < len; i++) {
+        if ((*game).secret_word[i] == letter) {
+            co_trong_tu = 1;
+            break;
+        }
+    }
+
+    if (co_trong_tu) {
+        (*game).guessed_letters[(*game).guessed_count] = letter;
+        (*game).guessed_count++;
+
+        if (kiem_tra_thang(game)) {
+            (*game).status = WON;
+        }
+    } else {
+        (*game).wrong_guesses[(*game).wrong_count] = letter;
+        (*game).wrong_count++;
+        (*game).lives--;
+
+        if ((*game).lives <= 0) {
+            (*game).status = LOST;
+        }
+    }
+
+    return 1;
+}
+
+void chay_unit_test() {
+    printf("--- DANG CHAY 5 UNIT TEST CHO PHAN LOGIC ---\n");
+    HangmanGame test_game;
+    
+    strcpy(test_game.secret_word, "python");
+    test_game.lives = 6;
+    test_game.guessed_count = 0;
+    test_game.wrong_count = 0;
+    test_game.status = PLAYING;
+
+    int kq_dung = xu_ly_doan_chu(&test_game, 'p');
+    assert(kq_dung == 1);
+    assert(test_game.guessed_count == 1);
+    assert(test_game.lives == 6);
+    printf("[PASS] Test 1: Doan dung ky tu thanh cong.\n");
+
+    int kq_sai = xu_ly_doan_chu(&test_game, 'z');
+    assert(kq_sai == 1);
+    assert(test_game.wrong_count == 1);
+    assert(test_game.lives == 5);
+    printf("[PASS] Test 2: Doan sai bi tru 1 luot thanh cong.\n");
+
+    int kq_trung = xu_ly_doan_chu(&test_game, 'p');
+    assert(kq_trung == 0);
+    assert(test_game.lives == 5);
+    printf("[PASS] Test 3: Doan trung khong bi tru luot thanh cong.\n");
+
+    strcpy(test_game.secret_word, "go");
+    test_game.lives = 6;
+    test_game.guessed_count = 0;
+    test_game.wrong_count = 0;
+    test_game.status = PLAYING;
+    
+    xu_ly_doan_chu(&test_game, 'g');
+    xu_ly_doan_chu(&test_game, 'o');
+    assert(test_game.status == WON);
+    printf("[PASS] Test 4: Dieu kien thang hoat dong dung.\n");
+
+    strcpy(test_game.secret_word, "php");
+    test_game.lives = 1;
+    test_game.guessed_count = 0;
+    test_game.wrong_count = 0;
+    test_game.status = PLAYING;
+    
+    xu_ly_doan_chu(&test_game, 'z');
+    assert(test_game.status == LOST);
+    printf("[PASS] Test 5: Dieu kien thua hoat dong dung.\n");
+
+    printf("--- TAT CA 5 UNIT TEST DA VUOT QUA THANH CONG! ---\n\n");
+}
+
+int main() {
+    chay_unit_test();
+    return 0;
+}
