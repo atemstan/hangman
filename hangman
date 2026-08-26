@@ -1,0 +1,244 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+
+#define MAX_WORDS 100
+#define MAX_WORD_LEN 50
+#define MAX_LIVES 6
+
+typedef enum {
+    PLAYING,
+    WON,
+    LOST
+} GameStatus;
+
+typedef struct {
+    char words[MAX_WORDS][MAX_WORD_LEN];
+    int word_count;
+    char secret_word[MAX_WORD_LEN];
+    char guessed_letters[26];
+    int guessed_count;
+    char wrong_guesses[26];
+    int wrong_count;
+    int lives;
+    GameStatus status;
+} HangmanGame;
+
+void doc_danh_sach_tu_tu_file(HangmanGame *game, const char *ten_file) {
+    FILE *file = fopen(ten_file, "r");
+    if (file == NULL) {
+        printf("Khong mo duoc file %s. Su dung tu mac dinh.\n", ten_file);
+        strcpy((*game).words[0], "programming");
+        (*game).word_count = 1;
+        return;
+    }
+
+    (*game).word_count = 0;
+    char buffer[MAX_WORD_LEN];
+    
+    while (fgets(buffer, sizeof(buffer), file) != NULL && (*game).word_count < MAX_WORDS) {
+        buffer[strcspn(buffer, "\r\n")] = '\0';
+        
+        if (strlen(buffer) > 0) {
+            for (int j = 0; buffer[j] != '\0'; j++) {
+                buffer[j] = tolower(buffer[j]);
+            }
+            strcpy((*game).words[(*game).word_count], buffer);
+            (*game).word_count++;
+        }
+    }
+    
+    fclose(file);
+
+    if ((*game).word_count <= 0) {
+        strcpy((*game).words[0], "python");
+        (*game).word_count = 1;
+    }
+}
+
+void bat_dau_van_moi(HangmanGame *game) {
+    int index;
+    char tu_cu[MAX_WORD_LEN];
+    strcpy(tu_cu, (*game).secret_word);
+
+    if ((*game).word_count <= 1) {
+        index = 0;
+    } else {
+        do {
+            index = rand() % (*game).word_count;
+        } while (strcmp((*game).words[index], tu_cu) == 0);
+    }
+
+    strcpy((*game).secret_word, (*game).words[index]);
+
+    (*game).lives = MAX_LIVES;
+    (*game).guessed_count = 0;
+    (*game).wrong_count = 0;
+    (*game).status = PLAYING;
+    
+    memset((*game).guessed_letters, 0, sizeof((*game).guessed_letters));
+    memset((*game).wrong_guesses, 0, sizeof((*game).wrong_guesses));
+}
+
+void hien_thi_trang_thai_tu(const HangmanGame *game, char *output) {
+    int len = strlen((*game).secret_word);
+    int pos = 0;
+    
+    for (int i = 0; i < len; i++) {
+        char c = (*game).secret_word[i];
+        if (c == ' ') {
+            output[pos++] = ' ';
+            output[pos++] = ' ';
+        } else {
+            int da_doan_dung = 0;
+            for (int j = 0; j < (*game).guessed_count; j++) {
+                if ((*game).guessed_letters[j] == c) {
+                    da_doan_dung = 1;
+                    break;
+                }
+            }
+            
+            if (da_doan_dung) {
+                output[pos++] = c;
+            } else {
+                output[pos++] = '_';
+            }
+            output[pos++] = ' ';
+        }
+    }
+    if (pos > 0 && output[pos - 1] == ' ') {
+        pos--;
+    }
+    output[pos] = '\0';
+}
+
+int kiem_tra_thang(const HangmanGame *game) {
+    int len = strlen((*game).secret_word);
+    for (int i = 0; i < len; i++) {
+        char c = (*game).secret_word[i];
+        if (c != ' ') {
+            int tim_thay = 0;
+            for (int j = 0; j < (*game).guessed_count; j++) {
+                if ((*game).guessed_letters[j] == c) {
+                    tim_thay = 1;
+                    break;
+                }
+            }
+            if (!tim_thay) return 0;
+        }
+    }
+    return 1;
+}
+
+int xu_ly_doan_chu(HangmanGame *game, char letter) {
+    if ((*game).status != PLAYING) return 0;
+
+    letter = tolower(letter);
+    if (!isalpha(letter)) return 0;
+
+    for (int i = 0; i < (*game).guessed_count; i++) {
+        if ((*game).guessed_letters[i] == letter) return 0;
+    }
+    for (int i = 0; i < (*game).wrong_count; i++) {
+        if ((*game).wrong_guesses[i] == letter) return 0;
+    }
+
+    int co_trong_tu = 0;
+    int len = strlen((*game).secret_word);
+    for (int i = 0; i < len; i++) {
+        if ((*game).secret_word[i] == letter) {
+            co_trong_tu = 1;
+            break;
+        }
+    }
+
+    if (co_trong_tu) {
+        (*game).guessed_letters[(*game).guessed_count] = letter;
+        (*game).guessed_count++;
+
+        if (kiem_tra_thang(game)) {
+            (*game).status = WON;
+        }
+    } else {
+        (*game).wrong_guesses[(*game).wrong_count] = letter;
+        (*game).wrong_count++;
+        (*game).lives--;
+
+        if ((*game).lives <= 0) {
+            (*game).status = LOST;
+        }
+    }
+
+    return 1;
+}
+
+int main() {
+    srand(time(NULL));
+    HangmanGame game;
+
+    strcpy(game.secret_word, "");
+
+    printf("=== CHAO MUNG DEN VOI TRO CHOI HANGMAN ===\n");
+    
+    doc_danh_sach_tu_tu_file(&game, "abc.txt");
+    printf("Da tai thanh cong %d tu vung tu file.\n", game.word_count);
+
+    char tiep_tuc_choi = 'y';
+    while (tiep_tuc_choi == 'y' || tiep_tuc_choi == 'Y') {
+        bat_dau_van_moi(&game);
+        printf("\nDa chon xong tu bi mat! Tu co %d ky tu.\n", (int)strlen(game.secret_word));
+
+        while (game.status == PLAYING) {
+            char khung_hien_thi[100];
+            hien_thi_trang_thai_tu(&game, khung_hien_thi);
+
+            printf("\n----------------------------------------\n");
+            printf("Trang thai tu : %s\n", khung_hien_thi);
+            printf("Da doan sai   : ");
+            for (int i = 0; i < game.wrong_count; i++) {
+                printf("%c ", game.wrong_guesses[i]);
+            }
+            printf("\nSo luot con lai: %d\n", game.lives);
+
+            printf("Nhap 1 ky tu ban doan: ");
+            char buffer[50];
+            if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
+                if (buffer[0] == '\n' || (buffer[1] != '\n' && buffer[1] != '\0')) {
+                    printf("Loi: Vui long chi nhap dung 1 ky tu chu cai!\n");
+                    continue;
+                }
+
+                char ky_tu_doan = buffer[0];
+                int ket_qua = xu_ly_doan_chu(&game, ky_tu_doan);
+                
+                if (!ket_qua) {
+                    printf("Thong bao: Ky tu khong hop le hoac da doan truoc do!\n");
+                } else {
+                    printf("Thong bao: Xu ly luot doan thanh cong!\n");
+                }
+            }
+        }
+
+        printf("\n----------------------------------------\n");
+        if (game.status == WON) {
+            printf("CHUC MUNG! Ban da chien thang!\n");
+        } else {
+            printf("THAT BAI! Ban da het luot doan.\n");
+        }
+        printf("Tu bi mat dung la: %s\n", game.secret_word);
+        printf("----------------------------------------\n");
+
+        printf("Ban co muon choi lai khong? (y/n): ");
+        char lua_chon_buffer[10];
+        if (fgets(lua_chon_buffer, sizeof(lua_chon_buffer), stdin) != NULL) {
+            tiep_tuc_choi = lua_chon_buffer[0];
+        } else {
+            break;
+        }
+    }
+
+    printf("Cam on ban da tham gia tro choi!\n");
+    return 0;
+}
