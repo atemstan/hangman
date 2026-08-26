@@ -4,9 +4,6 @@
 Chương trình đọc từ vựng từ file `abc.txt` (mỗi dòng 1 từ, để cùng thư mục với file
 chạy). Nếu không có file này, chương trình tự dùng 1 từ mặc định để không bị lỗi.
 
-## Cách chạy test
-
-Chưa có unit test trong bài này.
 
 ## Các quyết định thiết kế
 
