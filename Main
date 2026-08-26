@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include "game_logic.h"
+
+void hien_thi_trang_thai_tu(const HangmanGame *game, char *output) {
+    int len = strlen((*game).secret_word);
+    int pos = 0;
+    
+    for (int i = 0; i < len; i++) {
+        char c = (*game).secret_word[i];
+        if (c == ' ') {
+            output[pos++] = ' ';
+            output[pos++] = ' ';
+        } else {
+            int da_doan_dung = 0;
+            for (int j = 0; j < (*game).guessed_count; j++) {
+                if ((*game).guessed_letters[j] == c) {
+                    da_doan_dung = 1;
+                    break;
+                }
+            }
+            
+            if (da_doan_dung) {
+                output[pos++] = c;
+            } else {
+                output[pos++] = '_';
+            }
+            output[pos++] = ' ';
+        }
+    }
+    if (pos > 0 && output[pos - 1] == ' ') {
+        pos--;
+    }
+    output[pos] = '\0';
+}
+
+int main() {
+    srand(time(NULL));
+    HangmanGame game;
+
+    strcpy(game.secret_word, "");
+
+    printf("=== CHAO MUNG DEN VOI TRO CHOI HANGMAN ===\n");
+    
+    doc_danh_sach_tu_tu_file(&game, "words.txt");
+    printf("Da tai thanh cong %d tu vung tu file.\n", game.word_count);
+
+    int diem = 0;
+    int so_tran_thang = 0;
+    int so_tran_thua = 0;
+
+    char tiep_tuc_choi = 'y';
+    while (tiep_tuc_choi == 'y' || tiep_tuc_choi == 'Y') {
+        bat_dau_van_moi(&game);
+        printf("\nDa chon xong tu bi mat! Tu co %d ky tu.\n", (int)strlen(game.secret_word));
+
+        while (game.status == PLAYING) {
+            char khung_hien_thi[100];
+            hien_thi_trang_thai_tu(&game, khung_hien_thi);
+
+            printf("\n----------------------------------------\n");
+            printf("Diem hien tai : %d\n", diem);
+            printf("Trang thai tu : %s\n", khung_hien_thi);
+            printf("Da doan sai   : ");
+            for (int i = 0; i < game.wrong_count; i++) {
+                printf("%c ", game.wrong_guesses[i]);
+            }
+            printf("\nSo luot con lai: %d\n", game.lives);
+
+            printf("Nhap 1 ky tu ban doan: ");
+            char buffer[50];
+            if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
+                if (buffer[0] == '\n' || (buffer[1] != '\n' && buffer[1] != '\0')) {
+                    printf("Loi: Vui long chi nhap dung 1 ky tu chu cai!\n");
+                    continue;
+                }
+
+                char ky_tu_doan = buffer[0];
+                int ket_qua = xu_ly_doan_chu(&game, ky_tu_doan);
+                
+                if (!ket_qua) {
+                    printf("Thong bao: Ky tu khong hop le hoac da doan truoc do!\n");
+                } else {
+                    printf("Thong bao: Xu ly luot doan thanh cong!\n");
+                }
+            }
+        }
+
+        printf("\n----------------------------------------\n");
+        if (game.status == WON) {
+            printf("CHUC MUNG! Ban da chien thang!\n");
+            diem += (game.lives * 10);
+            so_tran_thang++;
+        } else {
+            printf("THAT BAI! Ban da het luot doan.\n");
+            so_tran_thua++;
+        }
+        printf("Tu bi mat dung la: %s\n", game.secret_word);
+        printf("Tong diem hien tai: %d\n", diem);
+        printf("Thong ke: Thang %d | Thua %d\n", so_tran_thang, so_tran_thua);
+        printf("----------------------------------------\n");
+
+        printf("Ban co muon choi lai khong? (y/n): ");
+        char lua_chon_buffer[10];
+        if (fgets(lua_chon_buffer, sizeof(lua_chon_buffer), stdin) != NULL) {
+            tiep_tuc_choi = lua_chon_buffer[0];
+        } else {
+            break;
+        }
+    }
+
+    printf("Cam on ban da tham gia tro choi!\n");
+    return 0;
+}
